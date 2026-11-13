@@ -1282,6 +1282,87 @@ struct LauncherUi::Impl {
         }
     }
 
+    // ---- Game Vault · PS Vita: a game Game Vault asked for (game_vault_start) ----
+    std::wstring gv_path;
+    int gv_stage = 0; // 0 none, 1 waiting for the firmware, 2 reading the archive, 3 installing, 4 waiting for the library
+    std::string gv_title;
+    Clock::time_point gv_until;
+    void gv_tick() {
+        using install::Phase;
+        if (gv_stage == 0)
+            return;
+        if (gv_stage == 1) {
+            if (fw_open && fws.phase != firmware::Phase::Done)
+                return; // the firmware screen downloads and installs it by itself
+            if (fw_open) {
+                fw_open = false;
+                fw.reset();
+            }
+            open_installer();
+            inst->use_path(gv_path);
+            inst->analyze(0);
+            gv_stage = 2;
+            log_line(Log::Lifecycle, "launcher ui: Game Vault game: reading %s", narrow(gv_path).c_str());
+            return;
+        }
+        if (gv_stage == 2) {
+            if (is.phase == Phase::Confirm) {
+                // already installed: started as it is (an update or DLC comes in its own archive)
+                for (const install::Item &it : is.items)
+                    if (it.kind == install::Kind::Game || it.kind == install::Kind::Homebrew) {
+                        gv_title = narrow(it.title_id);
+                        if (it.replaces) {
+                            log_line(Log::Lifecycle, "launcher ui: Game Vault game %s is installed already", gv_title.c_str());
+                            close_installer();
+                            gv_stage = 4;
+                            gv_until = Clock::now() + std::chrono::seconds(20);
+                            start_scan();
+                            return;
+                        }
+                    }
+                if (install_ready()) {
+                    log_line(Log::Lifecycle, "launcher ui: Game Vault game %s: installing", gv_title.c_str());
+                    inst->install();
+                    gv_stage = 3;
+                } else {
+                    gv_stage = 0; // the reason stays on screen
+                }
+            } else if (is.phase == Phase::Done) {
+                gv_stage = 0; // the archive could not be read: the reason stays on screen
+            }
+            return;
+        }
+        if (gv_stage == 3) {
+            if (is.phase != Phase::Done)
+                return;
+            if (!is.select_title_id.empty())
+                gv_title = is.select_title_id;
+            if (is.failed || !is.installed) {
+                gv_stage = 0; // what went wrong stays on screen
+                return;
+            }
+            close_installer();
+            gv_stage = 4;
+            gv_until = Clock::now() + std::chrono::seconds(20);
+            return;
+        }
+        if (gv_stage == 4) {
+            for (size_t i = 0; i < apps.size(); ++i)
+                if (gv_title == apps[i].info.title_id) {
+                    sel = static_cast<int>(i);
+                    launching = true;
+                    launch_t = 0;
+                    gv_stage = 0;
+                    log_line(Log::Lifecycle, "launcher ui: Game Vault game %s: starting", gv_title.c_str());
+                    return;
+                }
+            if (Clock::now() > gv_until) {
+                show_toast(L"The game was installed but is not in the library yet. Pick it here to play.");
+                gv_stage = 0;
+            }
+        }
+    }
+
     // ---- the USB installer (0.0.29.0, the "+" tile) ----
     void open_installer() {
         if (!inst)
@@ -3867,7 +3948,7 @@ struct LauncherUi::Impl {
             right = L"Enter saves  ·  the keyboard's close button keeps what you typed";
         } else if (fw_open) {
             if (!fw_busy()) {
-                x += button_hint(x, y, L"A", fws.phase == firmware::Phase::Done ? L"Continue" : L"Install from USB", 0x3E9A4F, a);
+                x += button_hint(x, y, L"A", fws.phase == firmware::Phase::Done ? L"Continue" : L"Try again", 0x3E9A4F, a);
                 if (fws.phase != firmware::Phase::Done)
                     x += button_hint(x, y, L"B", L"Skip for now", 0xB23A48, a);
             }
@@ -4156,6 +4237,7 @@ LauncherChoice LauncherUi::run(CoreWindow const &window, const LauncherHost &hos
         m.fw = std::make_unique<vitox::firmware::Setup>(kDevRoot);
         m.fw_open = true;
         m.fw_anim = 0;
+        m.fw->start(); // Game Vault · PS Vita: fetched from Sony at once, no button to press
         m.fw->poll(0, m.fws);
     }
     m.start_scan();
@@ -4177,6 +4259,7 @@ LauncherChoice LauncherUi::run(CoreWindow const &window, const LauncherHost &hos
             m.start_scan();
             m.next_scan = now + std::chrono::seconds(4);
         }
+        m.gv_tick();
         if (!m.launching && m.input(dt) && m.sel >= 0 && m.sel < static_cast<int>(m.apps.size())) {
             m.launching = true;
             m.launch_t = 0;
@@ -4212,6 +4295,11 @@ LauncherChoice LauncherUi::run(CoreWindow const &window, const LauncherHost &hos
     }
     m.stop_scan();
     return choice;
+}
+
+void LauncherUi::game_vault_start(const std::wstring &archive) {
+    impl_->gv_path = archive;
+    impl_->gv_stage = archive.empty() ? 0 : 1;
 }
 
 } // namespace vitox

@@ -1110,6 +1110,33 @@ void Installer::scan() {
     m.run([&m] { m.do_scan(); });
 }
 
+void Installer::use_path(const std::wstring &path) {
+    Impl &m = *impl_;
+    m.stop = true;
+    m.join();
+    m.stop = false;
+    m.close_zip();
+    Source src;
+    src.path = path;
+    const size_t cut = path.find_last_of(L"\\/");
+    src.info.name = cut == std::wstring::npos ? path : path.substr(cut + 1);
+    src.info.folder = cut == std::wstring::npos ? L"\\" : path.substr(0, cut);
+    src.info.drive = L"Game Vault";
+    try {
+        src.file = winrt::Windows::Storage::StorageFile::GetFileFromPathAsync(path).get();
+        src.info.size = src.file.GetBasicPropertiesAsync().get().Size();
+    } catch (...) {
+        // read with CreateFileFromApp instead (do_analyze tries that first)
+    }
+    m.sources.clear();
+    m.sources.push_back(src);
+    std::lock_guard<std::mutex> lock(m.m);
+    m.s = Snapshot{ Phase::Files, m.s.version + 1 };
+    m.s.files.push_back(src.info);
+    m.scan_message.clear();
+    log_line(Log::Lifecycle, "installer: Game Vault archive '%s'", narrow(path).c_str());
+}
+
 void Installer::analyze(size_t file) {
     Impl &m = *impl_;
     m.join();

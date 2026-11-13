@@ -479,6 +479,18 @@ bool vitox_import_trap(EmuEnvState &emuenv, CPUState &cpu, uint32_t nid, int thr
             LOG_WARN("Vitox [UGA-3] NID 0x{:08X} has no Vita3K export: upstream's not-found path (r0 = 0), as Vita3K", nid);
         return false;
     }
+    // Game Vault · PS Vita: a function not reviewed yet takes the same not-found path (r0 = 0, the game goes on) instead
+    // of stopping every guest thread - the way a game behaves on Vita3K for a function it has no code for. Day D: Tower
+    // Rush stopped 9 s in on sceNpCommerce2Init (the PlayStation Store), which it only needs online. The offline deny
+    // list (adhoc network activation) still stops the game. Each such NID is logged once.
+    if (!vitox_denied(nid)) {
+        static std::mutex open_m;
+        static std::set<uint32_t> open_seen;
+        std::lock_guard<std::mutex> lock(open_m);
+        if (open_seen.insert(nid).second)
+            LOG_WARN("Vitox [GV] NID 0x{:08X} {} not reviewed yet: r0 = 0 and the game goes on (Game Vault)", nid, import_name(nid));
+        return false;
+    }
     VitoxTrapRecord rec{};
     rec.nid = nid;
     rec.pc = read_pc(cpu);

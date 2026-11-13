@@ -37,6 +37,9 @@ public:
     // frames until the user starts an app (or the window closes). `preselect` = TITLE_ID or folder to highlight;
     // `toast` = a message shown briefly (e.g. how the last session ended)
     LauncherChoice run(winrt::Windows::UI::Core::CoreWindow const &window, const LauncherHost &host, const std::string &preselect, const std::wstring &toast);
+    // Game Vault · PS Vita: start the game in this archive (.vpk / .zip). The firmware first when it is missing, the
+    // archive installed when its game is not yet, then the game starts by itself.
+    void game_vault_start(const std::wstring &archive);
 
 private:
     struct Impl;

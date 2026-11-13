@@ -19,7 +19,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
@@ -44,8 +44,8 @@
     <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
     <!-- Same signing identity as M1 (CN=Vitox); the subject determines the PFN. -->
-    <PackageCertificateKeyFile>C:\Vitox\Vitox-M1\cert\Vitox_TestSigning.pfx</PackageCertificateKeyFile>
-    <PackageCertificateThumbprint>A7006C01926EBB49D9479190F6AC9B61DD5F5932</PackageCertificateThumbprint>
+    <PackageCertificateKeyFile>C:\Users\GamerDad\XboxEmu\wt-gv-systems\GameVault\cert\GameVault.pfx</PackageCertificateKeyFile>
+    <PackageCertificateThumbprint>1CAA552B13FB2746D4EA77C769FC1D7AF034D6AE</PackageCertificateThumbprint>
     <GenerateTestArtifacts>true</GenerateTestArtifacts>
     <!-- M3: one consistent WindowsStore dependency set from the Vitox-M3 core build (Release, /MD):
          real Vita3K core slice (vitox_core) + the same W^X-shimmed Dynarmic + Vita3K's fmt/spdlog/capstone. -->

@@ -6,12 +6,12 @@
   IgnorableNamespaces="uap mp">
 
   <!-- Identity is fixed from the first physical-test package onward. Bump only Version. -->
-  <Identity Name="Vitox.M1Probe" Publisher="CN=Vitox" Version="0.2.0.0" ProcessorArchitecture="x64" />
+  <Identity Name="GamerDad.VitaForGameVault" Publisher="CN=GamerDad" Version="0.1.0.2" ProcessorArchitecture="x64" />
   <mp:PhoneIdentity PhoneProductId="3b7c2e41-6f0a-4d8e-9c51-7a2d0e4b1f01" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
-    <DisplayName>Vitox</DisplayName>
-    <PublisherDisplayName>Vitox</PublisherDisplayName>
+    <DisplayName>Game Vault · PS Vita</DisplayName>
+    <PublisherDisplayName>Skitzelles</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -26,8 +26,8 @@
   <Applications>
     <Application Id="App" Executable="Vitox.exe" EntryPoint="VitoxM1Probe.App">
       <uap:VisualElements
-        DisplayName="Vitox"
-        Description="Vitox - PlayStation Vita runtime"
+        DisplayName="Game Vault · PS Vita"
+        Description="Game Vault · PS Vita - PlayStation Vita for Game Vault (based on Vitox and Vita3K)"
         BackgroundColor="#0B0518"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">
@@ -37,6 +37,12 @@
       <!-- 0.0.29.0: the launcher's USB installer lists .zip / .vpk archives on removable drives (removableStorage shows
            only the file types declared here) -->
       <Extensions>
+        <!-- Game Vault · PS Vita: Game Vault starts a game with gamevault-vita:?cmd=vita "<archive>"&launchOnExit=<link> -->
+        <uap:Extension Category="windows.protocol">
+          <uap:Protocol Name="gamevault-vita">
+            <uap:DisplayName>Game Vault · PS Vita</uap:DisplayName>
+          </uap:Protocol>
+        </uap:Extension>
         <uap:Extension Category="windows.fileTypeAssociation">
           <uap:FileTypeAssociation Name="vitoxarchive">
             <uap:DisplayName>Vita game archive</uap:DisplayName>
@@ -50,6 +56,15 @@
       </Extensions>
     </Application>
   </Applications>
+
+  <!-- Game Vault · PS Vita: Game Vault's copies of network games in the publisher's shared folder -->
+  <Extensions>
+    <Extension Category="windows.publisherCacheFolders">
+      <PublisherCacheFolders>
+        <Folder Name="games" />
+      </PublisherCacheFolders>
+    </Extension>
+  </Extensions>
 
   <Capabilities>
     <!-- 0.0.29.0: install games / DLC from a USB drive (launcher Library "+" tile) -->

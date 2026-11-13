@@ -120,6 +120,8 @@ public:
     explicit Installer(std::wstring dev_root);
     ~Installer();
     void scan();              // -> Scanning -> Files (or Files with an empty list + message)
+    // Game Vault · PS Vita: the file list is this one archive (a path Game Vault gave), then analyze(0) as usual
+    void use_path(const std::wstring &path);
     void analyze(size_t file); // Files -> Analyzing -> Confirm (or Done with the reason)
     void back();              // Confirm / Done -> Files (the archive is closed)
     void install();           // Confirm -> Installing -> Done

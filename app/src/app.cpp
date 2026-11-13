@@ -24,6 +24,7 @@
 #include <winrt/Windows.ApplicationModel.Activation.h>
 #include <winrt/Windows.ApplicationModel.Core.h>
 #include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Graphics.Display.h>
 #include <winrt/Windows.Storage.h>
 #include <winrt/Windows.System.h>
@@ -489,6 +490,32 @@ struct App : implements<App, IFrameworkViewSource, IFrameworkView> {
     void OnActivated(CoreApplicationView const &, IActivatedEventArgs const &args) {
         log_line(Log::Lifecycle, "Activated kind=%s(%d) previous_execution_state=%s", activation_kind(args.Kind()),
             static_cast<int>(args.Kind()), exec_state(args.PreviousExecutionState()));
+        if (args.Kind() == ActivationKind::Protocol) {
+            try {
+                auto query = args.as<ProtocolActivatedEventArgs>().Uri().QueryParsed();
+                std::wstring archive, exit_link;
+                for (uint32_t i = 0; i < query.Size(); ++i) {
+                    const auto e = query.GetAt(i);
+                    const std::wstring name(e.Name()), value(e.Value());
+                    if (name == L"cmd") {
+                        // vita "<path>": the path between the quotes
+                        const size_t a = value.find(L'"'), b = value.rfind(L'"');
+                        if (a != std::wstring::npos && b > a)
+                            archive = value.substr(a + 1, b - a - 1);
+                    } else if (name == L"launchOnExit") {
+                        exit_link = value;
+                    }
+                }
+                if (!archive.empty()) {
+                    gv_archive_ = archive;
+                    gv_exit_ = exit_link;
+                    gv_new_ = true;
+                    log_line(Log::Lifecycle, "Game Vault: start %s (back to %s)", narrow(archive).c_str(), narrow(exit_link).c_str());
+                }
+            } catch (...) {
+                log_line(Log::Lifecycle, "Game Vault: unreadable link");
+            }
+        }
         CoreWindow::GetForCurrentThread().Activate();
     }
 
@@ -536,7 +563,7 @@ private:
             return s;
         }(package_version_);
         host.local_state = local_state_;
-        host.closed = [this] { return closed_; };
+        host.closed = [this] { return closed_ || gv_new_; }; // a game from Game Vault leaves the library at once
         host.visible = [this] { return visible_; };
         unsigned sessions = 0;
         while (!closed_) {
@@ -545,10 +572,20 @@ private:
                 log_line(Log::Lifecycle, "launcher: UI init FAILED - no library");
                 break;
             }
+            if (gv_new_) {
+                gv_new_ = false;
+                gv_session_ = true;
+                ui.game_vault_start(gv_archive_);
+            }
             const LauncherChoice c = ui.run(window, host, preselect, toast);
             ui.release();
-            if (!c.launch)
+            if (!c.launch) {
+                if (gv_new_ && !closed_)
+                    continue; // another game from Game Vault
+                if (gv_session_ && !gv_exit_.empty() && !closed_)
+                    back_to_game_vault();
                 break;
+            }
             preselect = c.app.title_id;
             {
                 std::ofstream f(last_path, std::ios::trunc);
@@ -595,7 +632,27 @@ private:
             log_line(Log::Lifecycle, "launcher: session %u ended (%s) -> back to the library%s", sessions, quit ? "Return to Launcher" : "guest stop",
                 result.find("not-run") != std::string::npos ? " | the guest never started" : "");
             log_checkpoint("m9a4 cp app: launcher session end, back to the library");
+            // a game Game Vault started: back to Game Vault, not to the library
+            if (gv_session_ && !gv_exit_.empty() && !gv_new_) {
+                back_to_game_vault();
+                break;
+            }
         }
+    }
+
+    void back_to_game_vault() {
+        log_line(Log::Lifecycle, "Game Vault: back to %s", narrow(gv_exit_).c_str());
+        try {
+            Windows::System::Launcher::LaunchUriAsync(Uri(gv_exit_));
+        } catch (...) {
+        }
+        // a moment for the link to go out, then this app closes (Game Vault starts it again for the next game)
+        const auto until = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+        while (std::chrono::steady_clock::now() < until)
+            CoreWindow::GetForCurrentThread().Dispatcher().ProcessEvents(CoreProcessEventsOption::ProcessAllIfPresent);
+        gv_session_ = false;
+        closed_ = true;
+        CoreApplication::Exit();
     }
 
     template <typename F>
@@ -709,6 +766,10 @@ private:
     bool gfx_ok_ = false;
     bool visible_ = true;
     bool closed_ = false;
+    // Game Vault · PS Vita: the game Game Vault asked for (gamevault-vita:?cmd=vita "<archive>"&launchOnExit=<link>), and
+    // where to go when it ends
+    std::wstring gv_archive_, gv_exit_;
+    bool gv_new_ = false, gv_session_ = false;
 };
 
 } // namespace

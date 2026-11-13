@@ -10,6 +10,9 @@
 #include <winrt/Windows.Storage.FileProperties.h>
 #include <winrt/Windows.Storage.Search.h>
 #include <winrt/Windows.Storage.h>
+#include <winrt/Windows.Storage.Streams.h>
+#include <winrt/Windows.Web.Http.h>
+#include <winrt/Windows.Web.Http.Headers.h>
 #include <atomic>
 #include <filesystem>
 #include <thread>
@@ -35,6 +38,14 @@ std::wstring hex(const uint8_t *d, size_t n) {
         s += k[d[i] >> 4], s += k[d[i] & 15];
     return s;
 }
+
+// Game Vault · PS Vita: the three packages straight from Sony's update servers (the links on Vita3K's quick start page),
+// so the player needs no PC and no USB drive for them. Each download is checked against the same SHA-256 as a copy.
+const wchar_t *const kSonyUrls[kPackages] = {
+    L"http://dus01.psv.update.playstation.net/update/psv/image/2022_0209/rel_f2c7b12fe85496ec88a0391b514d6e3b/PSVUPDAT.PUP",
+    L"http://dus01.psp2.update.playstation.net/update/psp2/image/2022_0209/pre_efd1ef6c1cc2fe92e72e9e783e421237/PSP2UPDAT.PUP?dest=us",
+    L"http://dus01.psp2.update.playstation.net/update/psp2/image/2022_0209/sd_59dcf059d3328fb67be7e51f8aa33418/PSP2UPDAT.PUP?dest=us",
+};
 
 void fw_log(const char *line) { log_line(Log::Lifecycle, "firmware: %s", line); }
 void fw_mem(const char *) {}
@@ -104,11 +115,111 @@ struct Setup::Impl {
         return ok ? hex(dig, 32) : L"";
     }
 
+    // downloads url to dst while hashing it; returns the SHA-256 (empty on an error)
+    std::wstring download_hash(const wchar_t *url, const fs::path &dst) {
+        using namespace winrt::Windows::Web::Http;
+        using namespace winrt::Windows::Storage::Streams;
+        HANDLE out = INVALID_HANDLE_VALUE;
+        BCRYPT_HASH_HANDLE h = nullptr;
+        bool ok = false;
+        try {
+            HttpClient client;
+            HttpResponseMessage r = client.GetAsync(winrt::Windows::Foundation::Uri(url), HttpCompletionOption::ResponseHeadersRead).get();
+            if (!r.IsSuccessStatusCode()) {
+                log_line(Log::Lifecycle, "firmware: download HTTP %d", static_cast<int>(r.StatusCode()));
+                return L"";
+            }
+            const auto len = r.Content().Headers().ContentLength();
+            if (len) {
+                std::lock_guard<std::mutex> lock(m);
+                s.total_bytes += len.Value();
+                ++s.version;
+            }
+            IInputStream in = r.Content().ReadAsInputStreamAsync().get();
+            out = CreateFileFromAppW(dst.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+            BCryptCreateHash(BCRYPT_SHA256_ALG_HANDLE, &h, nullptr, 0, nullptr, 0, 0);
+            ok = out != INVALID_HANDLE_VALUE && h != nullptr;
+            Buffer buf(1 << 20);
+            while (ok && !stop) {
+                IBuffer got = in.ReadAsync(buf, buf.Capacity(), InputStreamOptions::Partial).get();
+                const uint32_t n = got.Length();
+                if (!n)
+                    break;
+                DWORD put = 0;
+                ok = WriteFile(out, got.data(), n, &put, nullptr) && put == n && BCryptHashData(h, got.data(), n, 0) == 0;
+                std::lock_guard<std::mutex> lock(m);
+                s.done_bytes += n;
+                ++s.version;
+            }
+        } catch (winrt::hresult_error const &e) {
+            log_line(Log::Lifecycle, "firmware: download failed 0x%08lX", static_cast<unsigned long>(e.code()));
+            ok = false;
+        }
+        uint8_t dig[32] = {};
+        ok = ok && !stop && BCryptFinishHash(h, dig, 32, 0) == 0;
+        if (h)
+            BCryptDestroyHash(h);
+        if (out != INVALID_HANDLE_VALUE)
+            CloseHandle(out);
+        return ok ? hex(dig, 32) : L"";
+    }
+
+    // Game Vault · PS Vita: every package not yet in the staging input is fetched from Sony. True when all three are there.
+    bool download_all() {
+        std::error_code ec;
+        bool all = true;
+        for (int i = 0; i < kPackages && !stop; ++i) {
+            if (fs::exists(input() / kPkgs[i].file, ec)) {
+                std::lock_guard<std::mutex> lock(m);
+                s.have[i] = true;
+                continue;
+            }
+            {
+                std::lock_guard<std::mutex> lock(m);
+                s.current = kPkgs[i].name;
+                ++s.version;
+            }
+            const fs::path tmp = input() / L"download.tmp";
+            const std::wstring sha = download_hash(kSonyUrls[i], tmp);
+            const bool match = !sha.empty() && (sha == widen(kPkgs[i].sha256) ||
+                                                (i == 2 && sha == L"C3C03FC7363DD573D90E5157629BF11551F434B283CC898D9FFC71DD716B791C"));
+            log_line(Log::Lifecycle, "firmware: download %s SHA-256 %s -> %s", narrow(kPkgs[i].file).c_str(), narrow(sha).c_str(),
+                match ? "ok" : "NOT the expected package");
+            if (match) {
+                fs::rename(tmp, input() / kPkgs[i].file, ec);
+                std::lock_guard<std::mutex> lock(m);
+                s.have[i] = !ec;
+                all = all && !ec;
+            } else {
+                fs::remove(tmp, ec);
+                all = false;
+            }
+        }
+        return all && !stop;
+    }
+
     void run() {
         using namespace winrt::Windows::Storage;
         winrt::init_apartment(winrt::apartment_type::multi_threaded);
         std::error_code ec;
         fs::create_directories(input(), ec);
+        // Game Vault · PS Vita: from Sony first; a USB drive with the .PUP files is only needed when that fails (offline)
+        set(Phase::Copying, L"Downloading the PS Vita system software from PlayStation…");
+        if (!download_all()) {
+            log_line(Log::Lifecycle, "firmware: download incomplete - looking on the USB drives");
+            std::lock_guard<std::mutex> lock(m);
+            s.done_bytes = s.total_bytes = 0;
+        }
+        bool have_all = true;
+        {
+            std::lock_guard<std::mutex> lock(m);
+            for (int i = 0; i < kPackages; ++i)
+                have_all = have_all && s.have[i];
+        }
+        if (have_all) {
+            install_now();
+            return;
+        }
         set(Phase::Scanning, L"Looking for .PUP files on the USB drives…");
         struct Found {
             std::wstring path, name;
@@ -185,6 +296,11 @@ struct Setup::Impl {
                 }
             s.current.clear();
         }
+        install_now();
+    }
+
+    void install_now() {
+        std::error_code ec;
         set(Phase::Installing, L"Installing the firmware… this takes about a minute.");
         const VitoxCoreHost host{ &fw_log, &fw_mem };
         const VitoxFirmwareStageResult r = vitox_firmware_stage_run(&host, fw.c_str());
