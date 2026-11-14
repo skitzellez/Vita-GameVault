@@ -304,6 +304,55 @@ struct Installer::Impl {
     std::thread worker;
     std::atomic<bool> running{ false };
     std::vector<Source> sources; // written by the scan worker only
+    // Game Vault · PS Vita: an unpacked game folder given by Game Vault (eboot.bin + sce_sys\\param.sfo) instead of an
+    // archive; "" for archives
+    std::wstring folder_src;
+
+    // a folder game's one item (as do_analyze makes for an archive's content root)
+    void do_analyze_folder() {
+        const fs::path dir(folder_src);
+        auto sfo = read_sfo_file(dir / L"sce_sys" / L"param.sfo");
+        Item it;
+        const std::string tid = sfo["TITLE_ID"], cat = sfo["CATEGORY"];
+        it.kind = tid.rfind("PCS", 0) == 0 ? Kind::Game : Kind::Homebrew;
+        it.title_id = widen(tid);
+        it.title = widen(sfo["TITLE"].empty() ? tid : sfo["TITLE"]);
+        it.content_id = widen(sfo["CONTENT_ID"]);
+        it.version = widen(sfo["APP_VER"].empty() ? sfo["VERSION"] : sfo["APP_VER"]);
+        std::error_code ec;
+        for (auto e = fs::recursive_directory_iterator(dir, ec); !ec && e != fs::recursive_directory_iterator(); e.increment(ec))
+            if (e->is_regular_file(ec))
+                it.bytes += e->file_size(ec), ++it.files;
+        if (sfo.empty())
+            it.installable = false, it.problem = L"The game folder's sce_sys\\param.sfo could not be read";
+        else if (!valid_title_id(tid))
+            it.installable = false, it.problem = L"The TITLE_ID “" + widen(tid) + L"” is not valid";
+        else if (cat == "ac" || cat.find("gp") != std::string::npos)
+            it.installable = false, it.problem = L"Updates and DLC in a folder are not supported yet: zip them";
+        else if (!path_exists(dir / L"eboot.bin"))
+            it.installable = false, it.problem = L"There is no eboot.bin in this folder";
+        const fs::path dest = it.kind == Kind::Game ? fs::path(dev) / L"app-staging" / it.title_id : homebrew_dest(tid);
+        it.dest = dest.wstring();
+        it.replaces = path_exists(dest);
+        if (it.installable && path_exists(dir / L"sce_sys" / L"package" / L"work.bin"))
+            it.nonpdrm = true, it.note = L"Encrypted (NoNpDrm): decrypted while installing";
+        log_line(Log::Lifecycle, "installer: folder %s '%s' v%s %llu B %u file(s) -> %s%s%s", tid.c_str(), narrow(it.title).c_str(), narrow(it.version).c_str(),
+            static_cast<unsigned long long>(it.bytes), it.files, narrow(it.dest).c_str(), it.nonpdrm ? " | NoNpDrm" : "",
+            it.installable ? "" : (" | " + narrow(it.problem)).c_str());
+        std::lock_guard<std::mutex> lock(m);
+        s.archive = dir.filename().wstring();
+        s.items = { it };
+        s.installed = s.failed = 0;
+        s.cancelled = s.cancelling = false;
+        s.select_title_id.clear();
+        s.need_bytes = it.bytes;
+        s.free_bytes = ~uint64_t(0);
+        s.space_ok = true;
+        s.phase = it.installable ? Phase::Confirm : Phase::Done;
+        if (!it.installable)
+            s.message = it.problem;
+        ++s.version;
+    }
     std::wstring scan_message;   // 0.1.1.0: the Files-phase message of the last scan (restored by back())
     size_t current = SIZE_MAX;   // 0.0.30.0: the archive being analysed / installed (index into sources)
     // the open archive (worker-owned between analyze and close)
@@ -530,6 +579,10 @@ struct Installer::Impl {
     }
     void do_analyze(size_t file) {
         close_zip();
+        if (!folder_src.empty()) {
+            do_analyze_folder();
+            return;
+        }
         if (file >= sources.size()) {
             set_phase(Phase::Files);
             return;
@@ -900,11 +953,23 @@ struct Installer::Impl {
                 fs::remove_all(tmp, ec);
                 fs::create_directories(tmp, ec);
                 const auto t0 = GetTickCount64();
-                err = extract(i, tmp);
+                // Game Vault · PS Vita: a game folder is read where it is (a NoNpDrm one is decrypted straight from it),
+                // a plain one copied; an archive is extracted
+                fs::path enc = tmp;
+                if (folder_src.empty()) {
+                    err = extract(i, tmp);
+                } else if (it.nonpdrm) {
+                    enc = folder_src;
+                } else {
+                    fs::copy(folder_src, tmp, fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+                    if (ec)
+                        err = L"could not copy the game folder (" + widen(ec.message()) + L")";
+                    done += it.bytes;
+                }
                 // 0.0.29.1: a NoNpDrm dump -> its decrypted copy (upstream decrypt_install_nonpdrm), which is what is installed
                 fs::path src = tmp;
                 if (err.empty() && it.nonpdrm) {
-                    err = decrypt(it, tmp, dec);
+                    err = decrypt(it, enc, dec);
                     if (err.empty())
                         src = dec;
                 }
@@ -1102,6 +1167,7 @@ void Installer::scan() {
     Impl &m = *impl_;
     m.stop = true;
     m.join();
+    m.folder_src.clear(); // (the USB installer lists archives again)
     m.close_zip();
     {
         std::lock_guard<std::mutex> lock(m.m);
@@ -1116,13 +1182,17 @@ void Installer::use_path(const std::wstring &path) {
     m.join();
     m.stop = false;
     m.close_zip();
+    std::error_code dec;
+    m.folder_src = std::filesystem::is_directory(path, dec) ? path : std::wstring();
     Source src;
     src.path = path;
     const size_t cut = path.find_last_of(L"\\/");
     src.info.name = cut == std::wstring::npos ? path : path.substr(cut + 1);
     src.info.folder = cut == std::wstring::npos ? L"\\" : path.substr(0, cut);
     src.info.drive = L"Game Vault";
-    try {
+    if (!m.folder_src.empty()) {
+        // (a folder: no file to open)
+    } else try {
         src.file = winrt::Windows::Storage::StorageFile::GetFileFromPathAsync(path).get();
         src.info.size = src.file.GetBasicPropertiesAsync().get().Size();
     } catch (...) {
