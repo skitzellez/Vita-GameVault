@@ -1176,8 +1176,13 @@ void Installer::scan() {
     m.run([&m] { m.do_scan(); });
 }
 
-void Installer::use_path(const std::wstring &path) {
+void Installer::use_path(const std::wstring &given) {
     Impl &m = *impl_;
+    // a game folder's eboot.bin stands for its folder
+    std::wstring path = given;
+    if (path.size() > 10 && _wcsicmp(path.c_str() + path.size() - 9, L"eboot.bin") == 0 &&
+        (path[path.size() - 10] == L'\\' || path[path.size() - 10] == L'/'))
+        path.resize(path.size() - 10);
     m.stop = true;
     m.join();
     m.stop = false;
