@@ -106,7 +106,9 @@ extern const wchar_t *const kDevRoot; // D:\DevelopmentFiles\Vitox
 // ---- 0.0.25.0 Vitox launcher UI + quick menu ----
 // host_input.cpp
 void overlay_state(VitoxOverlayTick *out);   // advances the quick menu to now (same as the VitoxHostInput hook)
-void overlay_session(bool active);           // a game session starts (true) / ends (false): resets the menu
+void overlay_session(bool active);
+// Game Vault · PS Vita: the game being played (its TITLE_ID), for its trigger layout; "" between games
+void input_set_game(const char *title_id);           // a game session starts (true) / ends (false): resets the menu
 void ui_script_load(const std::wstring &path); // DIAGNOSTIC scripted buttons (vitox-launch.txt ui_script=)
 bool host_pad_poll(VitoxPadReading *out);    // every connected gamepad OR'ed (launcher UI; independent of host_input_start)
 // 0.0.26.0 controller settings (host_input.cpp; launcher Settings > Input): applied to the game's pad reads only

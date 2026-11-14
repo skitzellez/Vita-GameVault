@@ -603,6 +603,7 @@ private:
                 continue;
             }
             overlay_set_info({ title, widen(c.app.title_id), std::wstring(c.app.dir) + L"\\sce_sys\\icon0.png" });
+            input_set_game(c.app.title_id); // Game Vault · PS Vita: its trigger layout
             bool quit = false;
             std::string result;
             // 0.0.30.0: the game's own settings (game menu) for this session; the global ones stay saved as they are

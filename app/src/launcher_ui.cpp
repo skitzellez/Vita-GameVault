@@ -277,8 +277,8 @@ struct LauncherUi::Impl {
         stroke_round(x0, y0, x1, y1, 34, rgba(0xC9A2FF, 0.5f * ma), 1.5f);
         text(L"WELCOME TO VITOX", x0 + 48, y0 + 34, 16, DWRITE_FONT_WEIGHT_BOLD, rgba(0xB07CFF, ma), 600, 5);
         text(L"Install the PS Vita firmware", x0 + 48, y0 + 62, 36, DWRITE_FONT_WEIGHT_SEMI_BOLD, rgba(0xFFFFFF, ma), 1100);
-        text(L"Vitox needs these three firmware files to run games correctly. Copy the .PUP files to a USB drive, connect it to the "
-             L"console and press A.",
+        text(L"The PS Vita system software comes straight from PlayStation, by itself. No internet? Copy the three .PUP files to a "
+             L"USB drive and press A.",
             x0 + 48, y0 + 120, 21, DWRITE_FONT_WEIGHT_NORMAL, rgba(0xCDB8F5, ma), 1300, 0, true);
         float ry = y0 + 200;
         for (int i = 0; i < firmware::kPackages; ++i, ry += 112) {

@@ -329,6 +329,26 @@ void touch_cursor(VitoxTouchCursor *out) {
     out->press_s = c.ever_pressed ? std::chrono::duration<float>(now - c.pressed).count() : -1.0f;
 }
 
+// Game Vault · PS Vita: the Xbox triggers. The Vita has no triggers (Vita3K reads them only as the PS TV's L2 / R2),
+// so LT / RT did nothing in a game. They are the Vita's L / R, like LB / RB; in a racing game RT is the gas and LT the
+// brake (Ridge Racer: Cross accelerates, Square brakes - owner 11-13: "fix the controls so i can drive").
+std::string g_game; // guarded by g_m
+bool racing_game(const std::string &id) {
+    static const char *const k[] = { "PCSE00001", "PCSB00048", "PCSG00001", "PCSH00001" }; // Ridge Racer (US, EU, JP, Asia)
+    for (const char *r : k)
+        if (id == r)
+            return true;
+    return false;
+}
+void apply_triggers(VitoxPadReading &p) {
+    const bool rt = p.rt > 0.35f, lt = p.lt > 0.35f;
+    if (racing_game(g_game)) {
+        p.buttons |= (rt ? 1u << 0 : 0) | (lt ? 1u << 2 : 0); // A = Cross (gas), X = Square (brake)
+    } else {
+        p.buttons |= (rt ? 1u << 10 : 0) | (lt ? 1u << 9 : 0); // RB = R, LB = L
+    }
+}
+
 bool read(unsigned slot, VitoxPadReading *out) {
     std::lock_guard<std::mutex> lock(g_m);
     // 0.1.1.6 DIAGNOSTIC: with no physical pad, slot 0 still reports ui-script presses (scripted test runs only; the
@@ -342,6 +362,7 @@ bool read(unsigned slot, VitoxPadReading *out) {
         return false;
     refresh(slot);
     *out = g_cache[slot];
+    apply_triggers(*out);
     // 0.0.25.0: the quick menu owns every pad while it is visible; R3 is its button (the Vita has no R3)
     if (overlay_blocks_locked()) {
         *out = VitoxPadReading{};
@@ -406,6 +427,11 @@ namespace vitox {
 void touch_cursor_state(VitoxTouchCursor *out) { touch_cursor(out); }
 
 void overlay_state(VitoxOverlayTick *out) { overlay_tick(out); }
+
+void input_set_game(const char *title_id) {
+    std::lock_guard<std::mutex> lock(g_m);
+    g_game = title_id ? title_id : "";
+}
 
 void overlay_session(bool active) {
     std::lock_guard<std::mutex> lock(g_m);
