@@ -1,168 +1,46 @@
-<p align="center"><img src="docs/images/vitox-splash.png" alt="Vitox - PlayStation Vita Runtime" width="700"></p>
+<p align="center">
+  <a href="https://github.com/skitzellez/xbox-game-vault"><img src="https://raw.githubusercontent.com/skitzellez/xbox-game-vault/main/GameVault/art/logo-banner.png" alt="Game Vault" width="640"></a>
+</p>
 
-# Vitox
+<h3 align="center">Game Vault · PS Vita</h3>
 
-**Vitox** is a PlayStation Vita runtime for the **Xbox Series X|S** (Developer Mode). It packages the
-[Vita3K](https://github.com/Vita3K/Vita3K) emulator core as a UWP app with a console-friendly library
-launcher, so commercial Vita games and homebrew can be installed from a USB drive and played on an Xbox.
+<p align="center">
+  PlayStation Vita games on <b>Xbox Series X|S in Developer Mode</b>, started straight from
+  <a href="https://github.com/skitzellez/xbox-game-vault">Game Vault</a>'s PS VITA tab.
+</p>
 
-> **Alpha (version 0.3).** Vitox is in alpha and will keep getting updates. Not every game runs correctly yet, so
-> expect bugs and games that do not start. If you find a bug, please report it in
-> [Issues](https://github.com/nirally/Vitox/issues) (game name, title ID and what happened) so it can be fixed.
-> Download the latest build (`vitox-0.3.zip`) from [Releases](https://github.com/nirally/Vitox/releases).
+<p align="center">
+  <a href="https://github.com/skitzellez/Vita-GameVault/releases/latest"><img alt="DOWNLOAD PS Vita" src="https://img.shields.io/badge/DOWNLOAD-PS%20Vita-107C10?style=for-the-badge&logo=xbox&logoColor=white"></a>
+  &nbsp;
+  <a href="https://github.com/skitzellez/xbox-game-vault"><img alt="Get Game Vault" src="https://img.shields.io/badge/GET-Game%20Vault-107C10?style=for-the-badge&logo=xbox&logoColor=white"></a>
+  &nbsp;
+  <a href="https://discord.gg/RmhhWgguvw"><img alt="Join the Game Vault Discord" src="https://img.shields.io/badge/JOIN-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
+</p>
 
----
+## What it does
 
-## The launcher
+- **Press A in Game Vault and play.** Put your Vita games on a USB drive or a network share: a `.vpk`, a `.zip`, or an
+  unpacked game folder (named by its ID, e.g. `PCSE00001`). Game Vault lists them with box art, and the first time you
+  play one it is installed here by itself (NoNpDrm dumps are decrypted while installing).
+- **No setup.** The PS Vita system software is downloaded from PlayStation's own servers the first time.
+- **Back to Game Vault** when the game ends.
+- **Xbox triggers work:** LT / RT are the Vita's L / R; in Ridge Racer RT is the gas and LT the brake.
 
-<p align="center"><img src="docs/images/launcher-library.png" alt="The Vitox library launcher on Xbox" width="900"></p>
-
-<p align="center">(Video showcase of the app plus a short gameplay of Gravity Rush: https://youtu.be/IHn02udTHqA)</p>
-
-The library shows every installed game with its artwork. Press **A** to start a game, **Menu** for per-game
-options, **RB** for Settings, and the **+** tile to install games from a USB drive. In game, press **R3** for
-the Vitox quick menu, and **L3** to show a cursor that simulates the Vita's touch screen.
-
-## Highlights
-
-- **Vita3K core on Xbox UWP**: the upstream Vita3K core (CPU via Dynarmic JIT, HLE modules, GXM renderer) runs
-  inside the Xbox app sandbox, with the console's W^X / JIT rules, codeGeneration capability and the 5 GB game
-  memory limit.
-- **Vulkan on Xbox through Mesa Dozen (Vulkan-on-D3D12)**: a WindowsStore build of Mesa 26.2.5 `dzn`, patched
-  for the Xbox GPU (see `mesa/`). Fixes include 16-bit precision handling, aligned vertex input
-  (vertex repacking in the Vita3K core), depth-surface handling and PSO compatibility.
-- **Import gating**: every Vita system-library function (NID) a game calls is explicitly selected and
-  reviewed (`core/core-probe/vitox_import_dispatch.cpp`); unselected calls stop the game cleanly instead of
-  running unknown code. Network/ad-hoc features stay disabled (no real network traffic).
-- **Library launcher** (D3D12 + Direct2D): game cards with artwork, per-game options, an in-game quick menu
-  (press **R3**) and a "Return to Launcher" flow.
-- **USB installer**: the "+" tile installs `.zip` / `.vpk` archives from a USB drive: games, updates,
-  DLC and homebrew. NoNpDrm dumps are decrypted during installation (PFS, as upstream Vita3K does).
-- **Settings**: controller remapping and stick dead zones, internal resolution upscaling up to 4K (1x–4x),
-  asynchronous shader compilation and shader pre-warming (with a loading screen), a performance statistics
-  overlay (FPS / memory / CPU), library options (hide homebrew), launcher sounds on/off, SteamGridDB artwork (your own API key).
-- **Per-game settings**: resolution, shader options and overlay can be set per title; uninstall with or
-  without save data.
-- **Saves, trophies, DLC**: save data and trophies are stored as on Vita3K; trophy unlocks show a banner
-  (top-left, so it never covers the statistics overlay); DLC is found in `ux0:addcont/<TITLE_ID>`. DLC and the trophy banner are verified on console.
-- **Audio** through an XAudio2 backend, **controllers** through Windows.Gaming.Input.
-- **Touch screen**: press **L3** in game to show a cursor that simulates touch. Move it with the left stick and press **A**
-  to tap; press **L3** again to hide it.
-
-## Tested games
-
-| Game | Title ID | Region | Status | Notes |
-|---|---|---|---|---|
-| VA-11 HALL-A: Cyberpunk Bartender Action | PCSE00756 | US | ✅ Playable | Tutorial + chapters, saves, trophies, 30-minute stability run |
-| Danganronpa Another Episode: Ultra Despair Girls | PCSE00692 | US | ✅ Playable | Picture, sound and movies OK; save/load OK |
-| Persona 4: Dancing All Night | PCSE00764 | US | ✅ Playable | Models, rhythm sync and input timing OK; save/load OK; DLC works |
-| Gravity Rush | PCSA00011 | US | ✅ Playable | Geometry, lighting and character colours fixed; title screen needs a touch (press **L3** for the touch cursor) |
-| Catherine: Full Body | PCSG01179 | JP | ✅ Playable | Gameplay, menus and text OK; save/load not yet tested |
-| Persona 3: Dancing in Moonlight | PCSE01274 | US | ✅ Playable | Plays without issues |
-| Persona 5: Dancing in Starlight | PCSE01275 | US | ✅ Playable | Plays without issues |
-| Hatsune Miku: Project DIVA X | PCSE00867 | US | ✅ Playable | Plays without issues |
-| WipEout 2048 | PCSA00015 | US | ✅ Playable | The Game Mode menu is touch-only: press **L3** for the touch cursor and tap a mode (needs 0.2 or later) |
-| Uncharted: Golden Abyss | PCSA00029 | US | ✅ Playable | Looks great, including at upscaled resolutions (the speckle and rainbow glitches are fixed in 0.3) |
-| Killzone: Mercenary | PCSA00107 | US | 🟡 In-game | Campaign plays. Corrupted textures, lag spikes, slow texture loading and the smeared glow around text are fixed in 0.3; more work is still planned |
-| Ridge Racer | PCSE00001 | US | ✅ Playable | Plays without issues (needs 0.3 or later) |
-| Run Sackboy! Run! | PCSA00490 | US | ✅ Playable | Runs at 60 FPS (needs 0.3 or later). At the title screen, press **A** to dismiss the empty message box |
-
-**Other games may work too — they simply have not been tested yet.** If you run another game with Vitox
-(working or not), please let me know (open an issue) with the game, its title ID and what you saw, so I can add
-it to the table.
-
-## Installing on Xbox
-
-These steps assume your Xbox Series X|S is already in **Developer Mode**.
-
-1. Download `vitox-0.3.zip` (or the newest release) from [Releases](https://github.com/nirally/Vitox/releases) on your PC and extract it. It
-   contains `Vitox_<version>_x64.msix` (the app), its certificate (`.cer`) and `Microsoft.VCLibs.x64.14.00.appx`
-   (a required dependency).
-2. On the Xbox, open **Dev Home** and note the **Remote Access** address (enable *Remote Access* in Dev Home
-   settings if needed, and set a username and password).
-3. On the PC, open that address in a browser (for example `https://192.168.1.50:11443`) to open the
-   **Xbox Device Portal**, and sign in.
-4. In **Home > My games & apps**, choose **Add**, select the `.msix` file and press **Next**. Add
-   `Microsoft.VCLibs.x64.14.00.appx` as a dependency, then press **Start** and wait until the installation completes.
-5. On the Xbox, find **Vitox** under *Games & apps*. Set it to run as a **Game** (press the Menu button on the tile >
-   *View details* > *App type: Game*) so it gets the full game memory.
-6. Start Vitox. On first start it asks for the PS Vita firmware (see [Firmware](#firmware)); then install your games
-   with the **+** tile from a USB drive.
-
-To update, install the new `.msix` the same way; your games, saves and settings are kept.
-
-## Firmware
-
-On first start Vitox asks for three PS Vita firmware files. Download them from Sony's servers (right click each link -> "Save link as..."), copy them to a USB
-drive (any name, any folder), connect it to the console and press **A** on the setup screen:
-
-| Package | Download (official Sony server) |
-|---|---|
-| System software 3.74 | [PSVUPDAT.PUP](http://dus01.psv.update.playstation.net/update/psv/image/2022_0209/rel_f2c7b12fe85496ec88a0391b514d6e3b/PSVUPDAT.PUP) |
-| Pre-installed package 3.74 | [PSP2UPDAT.PUP (preinst)](http://dus01.psp2.update.playstation.net/update/psp2/image/2022_0209/pre_efd1ef6c1cc2fe92e72e9e783e421237/PSP2UPDAT.PUP?dest=us) |
-| Font package | [PSP2UPDAT.PUP (fonts)](http://dus01.psp2.update.playstation.net/update/psp2/image/2022_0209/sd_59dcf059d3328fb67be7e51f8aa33418/PSP2UPDAT.PUP?dest=us) |
-
-Two of these files have the same name, so rename one (for example `PREINST.PUP`); Vitox recognises each file by its
-contents. See also the [Vita3K Quickstart guide](https://vita3k.org/quickstart#firmware).
-
-## Screenshots
-
-Captured on an Xbox Series X console running Vitox.
-
-| | |
-|---|---|
-| ![Catherine: Full Body](docs/images/catherine-full-body.webp) | ![Uncharted: Golden Abyss](docs/images/uncharted-golden-abyss.webp) |
-| ![Gravity Rush](docs/images/gravity-rush.webp) | ![Persona 3: Dancing in Moonlight](docs/images/persona3-dancing.webp) |
-
-## How it works
-
-```
-Xbox (Dev Mode, UWP app "Vitox")
- ├─ app/      launcher UI, settings, USB installer, presenter, input, audio glue  (C++/WinRT, D3D12, D2D)
- ├─ core/     Vita3K core build for WindowsStore + Vitox launcher core           (CMake, static libs)
- │    ├─ core-build/CMakeLists.txt   builds Vita3K sources; small source substitutions are applied
- │    │                              at build time (the Vita3K checkout itself stays unmodified)
- │    ├─ core-probe/                 session launcher, import dispatch/gating, NoNpDrm, firmware staging
- │    ├─ compat/                     UWP replacements (BCrypt instead of OpenSSL, XAudio2, offline shims, ...)
- │    └─ sdl-shim/                   the few SDL functions Vita3K needs, without SDL
- ├─ mesa/     patch for Mesa 26.2.5 Dozen (Vulkan on D3D12) built for WindowsStore / Xbox
- └─ tools/xbox/  PC-side test harness (Windows Device Portal: deploy, launch, logs, screenshots, backups)
-```
-
-The Vita3K core is used unmodified from upstream commit
-`7224a0fcc769fea781e4166e5f16a2456552f9f5`; every Xbox-specific change is either in this repository's own
-sources or applied as a checked substitution by `core/core-build/CMakeLists.txt` (a build fails if the upstream
-text it expects has changed).
-
-## Building (overview)
-
-Requirements: Windows 11, Visual Studio 2026 (C++ UWP workload, Windows SDK), CMake, Python 3, an Xbox in
-Developer Mode.
-
-1. Clone Vita3K at the commit above (with submodules) next to this repository.
-2. Build Mesa 26.2.5 Dozen for WindowsStore with `mesa/vitox-uwp-mesa-26.2.5.patch` → `vulkan_dzn.dll`,
-   and take `dxil.dll` from the Windows SDK redistributables; put both in `app/m6a/`.
-3. Configure and build the core: `core/core-build` with CMake (x64, Release) → static libraries.
-4. Build the app: `app/scripts/build.bat` (signs the package with your own test certificate; the certificate
-   and its password are not part of this repository).
-5. Deploy the `.msix` through Device Portal (or `tools/xbox/VitoxXbox.ps1 prepare -Deploy`).
-
-Games, firmware files and licenses are **not** included. Use your own legally dumped games and the official
-PS Vita firmware.
+Install it with the Game Vault setup, or press **RT** in Game Vault. Not every Vita game runs yet.
 
 ## Credits
 
-- [Vita3K](https://github.com/Vita3K/Vita3K) and its contributors: the emulator core this project is built on.
-- [Dynarmic](https://github.com/lioncash/dynarmic), [Mesa](https://www.mesa3d.org/) (Dozen),
-  [psvpfstools](https://github.com/motoharu-gosuto/psvpfstools), miniz and the other libraries Vita3K uses.
-- [Vita3K-Plus](https://github.com/nckstwrt/Vita3K-Plus) by nckstwrt: several Killzone: Mercenary fixes (texture
-  copies, shader maths, mip level selection) follow the approach of that fork.
-- [SteamGridDB](https://www.steamgriddb.com/) for optional artwork.
+This is a build of **[Vitox](https://github.com/nirally/Vitox) by nirally**, the PlayStation Vita runtime for Xbox
+Series X|S, which runs the **[Vita3K](https://github.com/Vita3K/Vita3K)** emulator core. All the hard work of getting
+Vita3K running on the Xbox is theirs; this build adds Game Vault's launch link, the automatic firmware download,
+installs from a game folder, and the trigger mapping. Vitox's own README is in [README-VITOX.md](README-VITOX.md).
 
-Vitox is not affiliated with Sony, Microsoft or the Vita3K team. "PlayStation" and "PS Vita" are trademarks of
-Sony Interactive Entertainment.
+Please don't take problems with this build to the Vitox or Vita3K teams: use the
+[Game Vault Discord](https://discord.gg/RmhhWgguvw) or this repository's Issues.
 
-## License
+No games, firmware or keys are included. Use dumps of games you own.
 
-Vita3K is licensed under the GNU GPL v2 (or later); Vitox builds on it and is distributed under the same terms
-(GPL-2.0-or-later).
+## Licence
+
+GPL-2.0-or-later, like Vita3K and Vitox ([LICENSE](LICENSE)). The source of every release is the matching tag here.
+Mesa's Dozen driver (vulkan_dzn.dll, MIT) and the DXIL validator come with the package as Vitox ships them.
