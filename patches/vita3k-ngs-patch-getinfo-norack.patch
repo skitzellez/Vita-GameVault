@@ -1,0 +1,14 @@
+diff --git a/vita3k/modules/SceNgsUser/SceNgs.cpp b/vita3k/modules/SceNgsUser/SceNgs.cpp
+index e7c4b4c7..dfabaf35 100644
+--- a/vita3k/modules/SceNgsUser/SceNgs.cpp
++++ b/vita3k/modules/SceNgsUser/SceNgs.cpp
+@@ -251,7 +251,8 @@ EXPORT(SceInt32, sceNgsPatchGetInfo, ngs::Patch *patch, SceNgsPatchAudioPropInfo
+ 
+     ngs::Voice *source = patch->source.get(emuenv.mem);
+     ngs::Voice *dest = patch->dest.get(emuenv.mem);
+-    if (!source || !dest) {
++    // Game Vault (2026-11-14, Gundam SEED Battle Destiny): a voice whose rack was never set up crashed the host here
++    if (!source || !dest || !source->rack || !dest->rack) {
+         return RET_ERROR(SCE_NGS_ERROR);
+     }
+ 
