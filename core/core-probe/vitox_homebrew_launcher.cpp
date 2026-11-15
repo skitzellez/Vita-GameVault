@@ -581,8 +581,11 @@ static bool vitox_apply_config_line(VitoxLaunchConfig &cfg, const std::string &k
                          // 0.1.1.8: libsystemgesture - the staged firmware gesture library (vs0:sys/external), which upstream
                          // auto-LLEs (SCE_SYSMODULE_SYSTEM_GESTURE); its HLE SceSystemGesture is all UNIMPLEMENTED, so touch
                          // recognizers never report a TAP (menus that need a tap see the finger down but never select)
+                         // 0.1.0.9 Game Vault (2026-11-14, Gundam SEED Battle Destiny had no sound): libsas - the staged firmware
+                         // SAS voice mixer (vs0:sys/external), which upstream auto-LLEs (SCE_SYSMODULE_SAS); its HLE SceSas is all
+                         // UNIMPLEMENTED, so every game that mixes its sound with SAS is silent
                          if (m != "libc" && m != "libfios2" && m != "libult" && m != "libpvf" && m != "libSceFt2" && m != "libscemp4" &&
-                             m != "libface" && m != "libsmart" && m != "libsystemgesture")
+                             m != "libface" && m != "libsmart" && m != "libsystemgesture" && m != "libsas")
                              return false;
                          if (e == std::string::npos)
                              break;
@@ -696,7 +699,7 @@ extern "C" VitoxLaunchConfig vitox_launcher_config_for(const wchar_t *dev_root, 
             if (sfs::is_regular_file(sfs::path(app->dir) / "sce_module" / (std::string(m) + ".suprx"), ec))
                 lle += (lle.empty() ? "" : ",") + std::string(m);
         if ((cfg.staged_pgf || staging_ready) && !lle.empty())
-            lle += ",libSceFt2,libpvf,libscemp4,libsystemgesture";
+            lle += ",libSceFt2,libpvf,libscemp4,libsystemgesture,libsas";
         strncpy_s(cfg.lle_modules, lle.c_str(), _TRUNCATE);
     }
     // (1) the firmware modules (libSceFt2 / libpvf / libscemp4) exist only in the staged firmware's vs0: a title that
@@ -704,7 +707,8 @@ extern "C" VitoxLaunchConfig vitox_launcher_config_for(const wchar_t *dev_root, 
     // game never started unless its profile also said firmware=staging-pgf)
     const std::string lle_list = std::string(",") + cfg.lle_modules + ",";
     const bool needs_vs0 = lle_list.find(",libSceFt2,") != std::string::npos || lle_list.find(",libpvf,") != std::string::npos
-        || lle_list.find(",libscemp4,") != std::string::npos || lle_list.find(",libsystemgesture,") != std::string::npos;
+        || lle_list.find(",libscemp4,") != std::string::npos || lle_list.find(",libsystemgesture,") != std::string::npos
+        || lle_list.find(",libsas,") != std::string::npos;
     if (needs_vs0 && !cfg.staged_pgf) {
         if (staging_ready)
             cfg.staged_pgf = true;
