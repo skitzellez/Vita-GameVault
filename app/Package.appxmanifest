@@ -6,7 +6,7 @@
   IgnorableNamespaces="uap mp">
 
   <!-- Identity is fixed from the first physical-test package onward. Bump only Version. -->
-  <Identity Name="GamerDad.VitaForGameVault" Publisher="CN=GamerDad" Version="0.1.0.5" ProcessorArchitecture="x64" />
+  <Identity Name="GamerDad.VitaForGameVault" Publisher="CN=GamerDad" Version="0.1.0.7" ProcessorArchitecture="x64" />
   <mp:PhoneIdentity PhoneProductId="3b7c2e41-6f0a-4d8e-9c51-7a2d0e4b1f01" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>

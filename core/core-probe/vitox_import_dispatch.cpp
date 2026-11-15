@@ -179,7 +179,9 @@
     /* 0.1.1.1 (BOOT-4, Project DIVA X trap sceCameraIsActive): upstream-REAL SceCamera over the INERT camera backend (compat/vitox_camera_inert.cpp: no SDL, no device; Camera::open fails with SCE_CAMERA_ERROR_NOT_OPEN, so the game sees a camera that cannot be opened). No host camera access. The camera imports of Project DIVA X / WipEout 2048 / Sly Cooper */ \
     X(sceCameraClose) X(sceCameraGetReverse) X(sceCameraIsActive) X(sceCameraOpen) X(sceCameraRead) X(sceCameraSetAntiFlicker) X(sceCameraSetAutoControlHold) X(sceCameraSetBacklight) X(sceCameraSetISO) X(sceCameraSetNightmode) X(sceCameraSetReverse) X(sceCameraSetWhiteBalance) X(sceCameraStart) X(sceCameraStop) \
     /* 0.1.1.9 (WipEout 2048 Game Mode menu: taps never select; trap sceTouchGetPixelDensity2 from the firmware libsystemgesture LLE added in 0.1.1.8): upstream-REAL SceTouch exports (fixed panel values / touch_get / force mode) */ \
-    X(sceTouchGetPixelDensity) X(sceTouchGetPixelDensity2) X(sceTouchPeek2) X(sceTouchRead2) X(sceTouchDisableTouchForce)
+    X(sceTouchGetPixelDensity) X(sceTouchGetPixelDensity2) X(sceTouchPeek2) X(sceTouchRead2) X(sceTouchDisableTouchForce) \
+    /* 0.1.0.6 Game Vault (owner 2026-11-14: Gundam SEED Battle Destiny PCSG00040 runs at 30 fps on a black screen; Vita3K lists it Playable): its unselected imports whose TUs are built, all upstream-REAL - GXM default uniform buffers (shader constants: without them nothing is drawn), texture format, back depth bias, sampler-cube query; kernel simple events (its AsyncRenderQueue thread waits on them); NGS Atrac9 voice definition. Its 5 SceSas imports stay unselected: SceSas is UNIMPLEMENTED upstream (return 0), the same as unselected */ \
+    X(sceGxmSetVertexDefaultUniformBuffer) X(sceGxmSetFragmentDefaultUniformBuffer) X(sceGxmTextureSetFormat) X(sceGxmSetBackDepthBias) X(sceGxmProgramParameterIsSamplerCube) X(sceKernelCreateSimpleEvent) X(sceKernelWaitEvent) X(sceKernelSetEvent) X(sceNgsVoiceDefGetSimpleAtrac9Voice)
 
 #define X(name) extern const ImportFn import_##name;
 VITOX_SELECTED_IMPORTS(X)
